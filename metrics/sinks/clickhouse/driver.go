@@ -31,8 +31,8 @@ import (
 )
 
 var insertSQL = `INSERT INTO %s.%s
-(date, name, tags, val, ts)
-VALUES	(?, ?, ?, ?, ?)`
+(date, name, cluster, tags, val, ts)
+VALUES	(?, ?, ?, ?, ?, ?)`
 
 var clickhouseBlacklistLabels = map[string]struct{}{
 	core.LabelPodNamespaceUID.Key: {},
@@ -42,10 +42,11 @@ var clickhouseBlacklistLabels = map[string]struct{}{
 }
 
 type point struct {
-	name string
-	tags []string
-	val  float64
-	ts   time.Time
+	name    string
+	cluster string
+	tags    []string
+	val     float64
+	ts      time.Time
 }
 
 type clickhouseSink struct {
@@ -88,9 +89,10 @@ func (sink *clickhouseSink) ExportData(dataBatch *core.DataBatch) {
 			}
 
 			pt := point{
-				name: metricName,
-				val:  value,
-				ts:   dataBatch.Timestamp,
+				name:    metricName,
+				cluster: sink.c.ClusterName,
+				val:     value,
+				ts:      dataBatch.Timestamp,
 			}
 
 			for key, value := range metricSet.Labels {
@@ -111,8 +113,6 @@ func (sink *clickhouseSink) ExportData(dataBatch *core.DataBatch) {
 					}
 				}
 			}
-
-			pt.tags = append(pt.tags, "cluster_name="+sink.c.ClusterName)
 
 			dataPoints = append(dataPoints, pt)
 			if len(dataPoints) >= sink.c.BatchSize {
@@ -165,7 +165,7 @@ func (sink *clickhouseSink) sendData(dataPoints []point) {
 		// ensure tags are inserted in the same order each time
 		// possibly/probably impacts indexing?
 		sort.Strings(pts.tags)
-		_, err = smt.Exec(pts.ts, pts.name, clickhouse.Array(pts.tags),
+		_, err = smt.Exec(pts.ts, pts.name, pts.cluster, clickhouse.Array(pts.tags),
 			pts.val, pts.ts)
 
 		if err != nil {
