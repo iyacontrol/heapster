@@ -1,9 +1,9 @@
-FROM scratch
+FROM alpine
+
+RUN apk add -U tzdata
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai  /etc/localtime
 
 COPY heapster eventer /
 COPY ca-certificates.crt /etc/ssl/certs/
-COPY zoneinfo.zip /usr/local/go/lib/time/
-
-#   nobody:nobody
-USER 65534:65534
+RUN chmod +x /heapster
 ENTRYPOINT ["/heapster"]
